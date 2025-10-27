@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 
-# Be conservative, should also run with python 3.7
+# Be conservative, should also run with python 3.8
 
+from __future__ import annotations
 from dataclasses import dataclass
 import sys
 import traceback
