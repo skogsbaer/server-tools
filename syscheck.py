@@ -2,12 +2,32 @@
 
 # Be conservative, should also run with python 3.7
 
-from shell import *
 from dataclasses import dataclass
 import sys
 import traceback
 import argparse
+import subprocess
+from typing import *
 from utils import *
+
+@dataclass
+class RunResult:
+    exitcode: int
+    stdout: str
+    stderr: str
+
+def run(command: str,
+        captureStdout: bool=False,
+        onError: Literal['raise', 'ignore']='raise') -> subprocess.CompletedProcess[str]:
+    text = True if captureStdout else None
+    check = True if onError == 'raise' else False
+    return subprocess.run(
+            command,
+            shell=True,
+            capture_output=captureStdout,
+            text=text,
+            check=check
+        )
 
 @dataclass
 class Config:
@@ -15,20 +35,20 @@ class Config:
     diskPath: str
     minDisk: int
     minInodes: int
-    urls: list
+    urls: list[str]
 
-ERROR_COUNT = 0
-def reportError(msg):
-    global ERROR_COUNT
-    if ERROR_COUNT == 0:
+errorCount: int = 0
+def reportError(msg: str):
+    global errorCount
+    if errorCount == 0:
         sys.stderr.write(f'==> syscheck on {getHostname()} failed! <==\n\n')
     sys.stderr.write(msg + '\n\n')
-    ERROR_COUNT = ERROR_COUNT + 1
+    errorCount = errorCount + 1
 
-def getHostname():
+def getHostname() -> str:
     return run('hostname -f', captureStdout=True).stdout.strip()
 
-def getMemAvailable():
+def getMemAvailable() -> float:
     try:
         av = run("awk '/^MemAvailable:/ { print $2; }' /proc/meminfo", captureStdout=True).stdout
         if not av:
@@ -44,7 +64,7 @@ def getMemAvailable():
         sys.stderr.write('\n\n')
         return 0
 
-def getDiskspaceAvailabe(path):
+def getDiskspaceAvailabe(path: str):
     try:
         freeMb = run("df -P -B1M " + path + " | awk 'NR == 2 { print $4; }'", captureStdout=True).stdout
         freeInodes = run("df -P -i " + path + " | awk 'NR == 2 { print $4;}'", captureStdout=True).stdout
@@ -55,17 +75,17 @@ def getDiskspaceAvailabe(path):
         sys.stderr.write('\n\n')
         return (0, 0)
 
-def checkWebsite(url):
+def checkWebsite(url: str):
     r = run(f'wget -q -O /dev/null --no-check-certificate {url}', onError='ignore')
-    return r.exitcode == 0
+    return r.returncode == 0
 
-def checkEnough(real, minimum, what):
+def checkEnough(real: float, minimum: float, what: str):
     if real < minimum:
         reportError(f'Only {real} {what} available, required at least {minimum}')
     else:
         info(f'{real} {what} available, that is enough')
 
-def check(config):
+def check(config: Config):
     checkEnough(getMemAvailable(), config.minMemory, 'MB of free memory')
     (freeDisk, freeInodes) = getDiskspaceAvailabe(config.diskPath)
     checkEnough(freeDisk, config.minDisk, 'MB of diskspace')
@@ -89,7 +109,7 @@ def main():
 
     args = parser.parse_args()
 
-    urls = args.urls if args.urls else []
+    urls: list[str] = args.urls if args.urls else []
 
     print()
     info("New syscheck run ...")
@@ -98,9 +118,9 @@ def main():
         urls=urls
     )
     check(config)
-    if ERROR_COUNT > 1:
-        sys.stderr.write(f'ERROR: {ERROR_COUNT} check(s) FAILED!\n')
-        info(f"syscheck run finished with {ERROR_COUNT} errors")
+    if errorCount > 1:
+        sys.stderr.write(f'ERROR: {errorCount} check(s) FAILED!\n')
+        info(f"syscheck run finished with {errorCount} errors")
         sys.exit(1)
     else:
         info("syscheck run finished without errors")
