@@ -95,7 +95,9 @@ def check(config: Config):
         if checkWebsite(url):
             info(f'URL {url} is accessible')
         else:
-            reportError(f'URL {url} is not accessible')
+            s = f'URL {url} is not accessible'
+            info(s)
+            reportError(s)
 
 def main():
     parser = argparse.ArgumentParser(description='System check utility')
@@ -119,7 +121,7 @@ def main():
         urls=urls
     )
     check(config)
-    if errorCount > 1:
+    if errorCount > 0:
         sys.stderr.write(f'ERROR: {errorCount} check(s) FAILED!\n')
         info(f"syscheck run finished with {errorCount} errors")
         sys.exit(1)
