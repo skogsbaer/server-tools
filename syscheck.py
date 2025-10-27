@@ -103,6 +103,8 @@ def main():
     parser = argparse.ArgumentParser(description='System check utility')
     parser.add_argument('--url', dest='urls', action='append', metavar='URL',
                         help='Check if URL is accessible, can be specified multiple times')
+    parser.add_argument('--urlFile', dest='urlFile', metavar='FILE',
+                        help='Path to a file containing additional URLs (one per line); lines starting with # and empty lines are ignored')
     parser.add_argument('--minRAM', type=int, default=1000, metavar='N',
                         help='Minimal RAM required (in MB, default 1000)')
     parser.add_argument('--minDisk', type=int, default=5000, metavar='N',
@@ -113,6 +115,17 @@ def main():
     args = parser.parse_args()
 
     urls: list[str] = args.urls if args.urls else []
+    # Add URLs from file if provided
+    if args.urlFile:
+        try:
+            with open(args.urlFile, 'r', encoding='utf-8') as f:
+                for line in f:
+                    s = line.strip()
+                    if not s or s.startswith('#'):
+                        continue
+                    urls.append(s)
+        except Exception as e:
+            reportError(f"Could not read URL file '{args.urlFile}': {e}")
 
     print()
     info("New syscheck run ...")
