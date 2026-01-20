@@ -77,7 +77,7 @@ def getDiskspaceAvailabe(path: str):
         return (0, 0)
 
 def checkWebsite(url: str):
-    r = run(f'wget -q -O /dev/null --no-check-certificate {url}', onError='ignore')
+    r = run(f'wget -q -O /dev/null {url}', onError='ignore')
     return r.returncode == 0
 
 def checkEnough(real: float, minimum: float, what: str):
