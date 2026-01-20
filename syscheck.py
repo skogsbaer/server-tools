@@ -76,9 +76,17 @@ def getDiskspaceAvailabe(path: str):
         sys.stderr.write('\n\n')
         return (0, 0)
 
-def checkWebsite(url: str):
+def checkWebsite(url: str) -> Literal['ok', 'ssl_problem', 'not_reachable', 'other_problem']:
     r = run(f'wget -q -O /dev/null {url}', onError='ignore')
-    return r.returncode == 0
+    code = r.returncode
+    if code == 0:
+        return 'ok'
+    elif code == 5:
+        return 'ssl_problem'
+    elif code in [1, 3, 4]:
+        return 'not_reachable'
+    else:
+        return 'other_problem'
 
 def checkEnough(real: float, minimum: float, what: str):
     if real < minimum:
@@ -92,10 +100,11 @@ def check(config: Config):
     checkEnough(freeDisk, config.minDisk, 'MB of diskspace')
     checkEnough(freeInodes, config.minInodes, 'number of inodes')
     for url in config.urls:
-        if checkWebsite(url):
+        checkRes = checkWebsite(url)
+        if checkRes == 'ok':
             info(f'URL {url} is accessible')
         else:
-            s = f'URL {url} is not accessible'
+            s = f'URL {url} is not accessible: {checkRes}'
             info(s)
             reportError(s)
 
