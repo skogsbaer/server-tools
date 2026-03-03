@@ -48,6 +48,7 @@ echo "$delim" >>"$log_file"
 echo "New run: $(date)" >>"$log_file"
 echo "$delim" >>"$log_file"
 cat "$tmp_out" >>"$log_file"
+echo "" >>"$log_file"
 echo  "=== RUN END (exit code: $rc) ====================================">>"$log_file"
 
 # On failure, also print to terminal (stderr is best for cron mail)
