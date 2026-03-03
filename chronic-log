@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ $# -lt 2 ]]; then
+  echo "Usage: $0 LOG_FILE COMMAND [ARGS...]" >&2
+  exit 2
+fi
+
+log_file=$1
+shift
+
+max_bytes=$((100 * 1024 * 1024))   # 100MB
+max_bytes=1024
+keep_bytes=$(($max_bytes / 2))     # keep last half
+
+if command -v gstat >/dev/null 2>&1; then
+  STAT_BIN="gstat"
+else
+  STAT_BIN="stat"
+fi
+
+# Ensure log dir exists
+mkdir -p "$(dirname "$log_file")"
+
+# If log too big: keep only the last half (drop first half)
+if [[ -f "$log_file" ]]; then
+  size=$($STAT_BIN -c %s "$log_file" 2>/dev/null || echo 0)
+  if (( size >= max_bytes )); then
+    tmp_trim=$(mktemp)
+    # Keep last keep_bytes (tail -c prints whole file if smaller)
+    tail -c "$keep_bytes" "$log_file" >"$tmp_trim" || true
+    mv -f "$tmp_trim" "$log_file"
+    rm -f "$tmp_trim"
+  fi
+fi
+
+tmp_out=$(mktemp)
+# Run command, capture combined stdout+stderr preserving order
+set +e
+"$@" >"$tmp_out" 2>&1
+rc=$?
+set -e
+
+# Append to logfile
+delim="==============================================================="
+echo "" >>"$log_file"
+echo "$delim" >>"$log_file"
+echo "New run: $(date)" >>"$log_file"
+echo "$delim" >>"$log_file"
+cat "$tmp_out" >>"$log_file"
+echo  "=== RUN END (exit code: $rc) ====================================">>"$log_file"
+
+# On failure, also print to terminal (stderr is best for cron mail)
+if (( rc != 0 )); then
+  cat "$tmp_out" >&2
+fi
+
+rm -f "$tmp_out"
+exit "$rc"
